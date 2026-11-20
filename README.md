@@ -20,8 +20,9 @@ A mobile-first Indian fashion and lifestyle shopping app (pink and purple theme,
 8. [Free deployment: Atlas, Render and Vercel](#free-deployment-atlas--render--vercel)
 9. [Keeping Render awake](#keeping-render-awake-free-uptime-pinger)
 10. [Calls (audio and video)](#calls-audio-and-video)
-11. [Security](#security)
-12. [Troubleshooting](#troubleshooting)
+11. [Install as an app (Android)](#install-as-an-app-android)
+12. [Security](#security)
+13. [Troubleshooting](#troubleshooting)
 
 API reference: **[API_DOCS.md](API_DOCS.md)**
 
@@ -398,6 +399,30 @@ Any other TURN service with a fixed username and password works with `TURN_PROVI
 
 ---
 
+## Install as an app (Android)
+
+Kaasni is an installable web app (PWA). On Android it gets its own home-screen icon and opens full-screen like a normal app. No APK and no Play Store are needed.
+
+**For shoppers (Android, Chrome):**
+1. Open the site in **Chrome**.
+2. Tap **Install** on the *"Get the Kaasni app"* card. Or open the Chrome menu **⋮ → Install app** (on some phones it's called **Add to Home screen**).
+3. Tap **Install**. The **Kaasni** icon appears on the home screen and in the app drawer.
+
+Edge and Samsung Internet offer the same option in their menus. On iPhone, open the site in Safari and use **Share → Add to Home Screen**.
+
+**How it works:**
+- `client/public/manifest.webmanifest` holds the name, colours and icons (`client/public/icons/`).
+- `client/public/sw.js` is a small service worker that shows `offline.html` when there's no internet. It **caches nothing else**: no pages, no API data, no chat code. So nothing private stays on the phone, and every `git push` reaches the installed app on its next launch.
+- The *"Get the Kaasni app"* card appears only when the browser says the site can be installed. It never appears inside the installed app, and stays hidden for 30 days after *Not now*.
+
+**Calls in the app:** the first call asks for microphone and camera permission, just as in Chrome. To change it later: long-press the app icon → **App info → Permissions**, or **Chrome → Settings → Site settings**.
+
+**Removing it:** long-press the icon → **Uninstall**.
+
+Installing requires **https**, which Netlify and Vercel provide automatically. It doesn't work from `http://` addresses other than `localhost`.
+
+---
+
 ## Security
 
 - **Passwords:**
@@ -469,4 +494,5 @@ Any other TURN service with a fixed username and password works with `TURN_PROVI
 | `Refusing to start in production` | Set a long random `JWT_SECRET` and `CLIENT_URL` on Render. |
 | Image upload says "not configured" | Add the three `CLOUDINARY_*` variables, or use image links. |
 | Old messages show "could not be decrypted" | `ENCRYPTION_KEY` changed; restore the original value. |
+| No "Install app" option on Android | Use Chrome, and open the **https** address. If you tapped *Not now*, use **⋮ → Install app** instead. Already installed? Look for the Kaasni icon. |
 | Port 5000 already in use (locally) | Another server is running; stop it, or set `PORT` in `server/.env` and `VITE_API_URL` to match. |

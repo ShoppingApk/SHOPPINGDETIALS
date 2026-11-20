@@ -4,6 +4,7 @@ import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import Footer from './Footer';
 import Spinner from './Spinner';
+import InstallAppBanner from './InstallAppBanner';
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -29,6 +30,7 @@ export default function Layout({ children }) {
         <Footer />
       </div>
       <BottomNav />
+      <InstallAppBanner />
     </div>
   );
 }

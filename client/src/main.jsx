@@ -7,6 +7,9 @@ import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ChatProvider } from './context/ChatContext';
 import './index.css';
+import { initPwa } from './pwa';
+
+initPwa();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
