@@ -12,7 +12,8 @@
     "start": "node index.js",
     "create-admin": "node scripts/createAdmin.js",
     "seed": "node seed.js",
-    "create-chatuser": "node scripts/createChatuser.js"
+    "create-chatuser": "node scripts/createChatuser.js",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -3,8 +3,10 @@ const User = require('../models/User');
 const { verifyToken, isTokenStale } = require('../utils/token');
 const registry = require('./registry');
 const chat = require('../services/chatService');
+const { attachCallHandlers } = require('./calls');
 
-const MAX_PAYLOAD_BYTES = 16 * 1024;
+// Video call offers (SDP) can be 10+ KB, so allow up to 64 KB per message.
+const MAX_PAYLOAD_BYTES = 64 * 1024;
 
 // Sliding-window limiter per socket: `limit` events per `windowMs`.
 function limiter(limit, windowMs) {
@@ -57,6 +59,7 @@ module.exports = function initSocket(httpServer, corsOptions) {
     const allowOther = limiter(60, 10_000);
 
     socket.join(registry.room(me));
+    attachCallHandlers(socket, { limiter });
 
     if (registry.addSocket(me, socket.id)) {
       User.updateOne({ _id: me }, { $set: { isOnline: true } }).catch(() => {});

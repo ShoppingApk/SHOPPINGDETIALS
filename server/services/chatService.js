@@ -37,8 +37,9 @@ function serialize(m) {
     deliveredAt: m.deliveredAt || null,
     readAt: m.readAt || null,
   };
-  if (m.deletedForEveryone) return { ...base, deleted: true, text: DELETED_PLACEHOLDER, imageUrl: '' };
-  return { ...base, deleted: false, text: decrypt(m.textEncrypted), imageUrl: m.imageUrl || '' };
+  if (m.deletedForEveryone) return { ...base, kind: 'text', deleted: true, text: DELETED_PLACEHOLDER, imageUrl: '' };
+  if (m.kind === 'call') return { ...base, kind: 'call', deleted: false, text: '', imageUrl: '', call: { type: m.call?.type, outcome: m.call?.outcome, duration: m.call?.duration || 0 } };
+  return { ...base, kind: 'text', deleted: false, text: decrypt(m.textEncrypted), imageUrl: m.imageUrl || '' };
 }
 
 // Only images uploaded to our own Cloudinary account may be attached to messages.
@@ -236,6 +237,37 @@ async function deleteMessage(me, messageId, scope) {
   };
 }
 
+// ---------- calls ----------
+
+// Both users must be active chatusers who already share a conversation.
+// Returns { conversationId, caller: publicUser } or null (never says which check failed).
+async function callContext(callerId, calleeId) {
+  if (!isId(String(callerId)) || !isId(String(calleeId)) || String(callerId) === String(calleeId)) return null;
+  const [caller, callee, conv] = await Promise.all([
+    activeChatuser(callerId),
+    activeChatuser(calleeId),
+    Conversation.findOne({ pairKey: Conversation.pairKeyFor(callerId, calleeId) }).select('_id').lean(),
+  ]);
+  if (!caller || !callee || !conv) return null;
+  return { conversationId: String(conv._id), caller: publicUser(caller) };
+}
+
+// Stores a call log entry in the conversation and pushes it to both users' open chats.
+async function logCall({ conversationId, callerId, calleeId, type, outcome, duration = 0 }) {
+  const msg = await Message.create({
+    conversation: conversationId,
+    sender: callerId,
+    receiver: calleeId,
+    kind: 'call',
+    call: { type, outcome, duration: Math.max(0, Math.round(duration)) },
+  });
+  await Conversation.updateOne({ _id: conversationId }, { $set: { lastMessage: msg._id, lastMessageAt: msg.createdAt } });
+  const message = serialize(msg);
+  registry.emitToUser(callerId, 'message:new', { message });
+  registry.emitToUser(calleeId, 'message:new', { message });
+  return message;
+}
+
 // Sends a delete result to the right people (all tabs of each).
 function broadcastDelete(result) {
   for (const uid of result.notify) {
@@ -265,4 +297,6 @@ module.exports = {
   markRead,
   deleteMessage,
   broadcastDelete,
+  callContext,
+  logCall,
 };

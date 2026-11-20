@@ -40,6 +40,9 @@ export default function useChatEngine() {
   const socketRef = useRef(null);
   const pending = useRef(new Map()); // tempId -> { cid, text?, file?, preview?, uploadedUrl? }
   const typingTimers = useRef({});
+  // Extension point for the call module: socket event listeners + hooks run on (re)connect
+  // and right before the socket closes (so a call can be ended cleanly first).
+  const ext = useRef({ handlers: new Map(), onConnect: new Set(), beforeClose: new Set() });
 
   // ---------- REST loaders ----------
   const loadConversations = useCallback(async () => {
@@ -99,8 +102,11 @@ export default function useChatEngine() {
     });
     socketRef.current = s;
 
+    s.onAny((event, ...args) => ext.current.handlers.get(event)?.forEach((h) => h(...args)));
+
     s.on('connect', () => {
       dispatch({ type: 'CONNECTION', state: 'connected' });
+      ext.current.onConnect.forEach((h) => h(connectedBefore));
       if (connectedBefore) {
         // Catch up on anything missed while disconnected.
         loadConversations();
@@ -165,9 +171,12 @@ export default function useChatEngine() {
 
     const timers = typingTimers.current;
     const pend = pending.current;
+    const hooks = ext.current;
     return () => {
       clearTimeout(connectTimer);
+      hooks.beforeClose.forEach((h) => h(s));
       s.removeAllListeners();
+      s.offAny();
       s.disconnect();
       socketRef.current = null;
       Object.values(timers).forEach(clearTimeout);
@@ -330,5 +339,34 @@ export default function useChatEngine() {
     [loadConversations, loadLatest, loadOlder, openConversation, startChatWith, sendText, sendImage, retry, deleteMessage, typing, markRead]
   );
 
-  return useMemo(() => ({ state, actions, me }), [state, actions, me]);
+  // Used by the call module (useCall). Stable for the lifetime of the chat screen.
+  const socketApi = useMemo(
+    () => ({
+      emit: (...args) => socketRef.current?.emit(...args),
+      emitWithAck: (event, payload, timeoutMs = ACK_TIMEOUT_MS) =>
+        new Promise((resolve) => {
+          const sock = socketRef.current;
+          if (!sock?.connected) return resolve({ ok: false, error: 'Not connected. Check your internet connection.' });
+          return sock.timeout(timeoutMs).emit(event, payload, (err, res) => resolve(err ? { ok: false, error: 'No response from the server' } : res || { ok: false }));
+        }),
+      connected: () => !!socketRef.current?.connected,
+      on(event, handler) {
+        const { handlers } = ext.current;
+        if (!handlers.has(event)) handlers.set(event, new Set());
+        handlers.get(event).add(handler);
+        return () => handlers.get(event)?.delete(handler);
+      },
+      onConnect(handler) {
+        ext.current.onConnect.add(handler);
+        return () => ext.current.onConnect.delete(handler);
+      },
+      beforeClose(handler) {
+        ext.current.beforeClose.add(handler);
+        return () => ext.current.beforeClose.delete(handler);
+      },
+    }),
+    []
+  );
+
+  return useMemo(() => ({ state, actions, me, socketApi }), [state, actions, me, socketApi]);
 }

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const MESSAGE_STATUS = ['sent', 'delivered', 'read'];
+const CALL_OUTCOMES = ['completed', 'missed', 'declined'];
 
 const messageSchema = new mongoose.Schema(
   {
@@ -10,6 +11,19 @@ const messageSchema = new mongoose.Schema(
     // AES-256-GCM ciphertext. Plaintext is never stored. See utils/crypto.js.
     textEncrypted: {
       type: new mongoose.Schema({ iv: String, tag: String, data: String }, { _id: false }),
+      default: undefined,
+    },
+    // "call": a call log entry (no text or media; sender = caller, receiver = callee).
+    kind: { type: String, enum: ['text', 'call'], default: 'text' },
+    call: {
+      type: new mongoose.Schema(
+        {
+          type: { type: String, enum: ['audio', 'video'], required: true },
+          outcome: { type: String, enum: CALL_OUTCOMES, required: true },
+          duration: { type: Number, default: 0 }, // seconds, completed calls only
+        },
+        { _id: false }
+      ),
       default: undefined,
     },
     imageUrl: { type: String, default: '' },
@@ -30,3 +44,4 @@ messageSchema.index({ receiver: 1, status: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);
 module.exports.MESSAGE_STATUS = MESSAGE_STATUS;
+module.exports.CALL_OUTCOMES = CALL_OUTCOMES;

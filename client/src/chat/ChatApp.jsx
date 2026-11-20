@@ -4,6 +4,8 @@ import ConversationList from './ConversationList';
 import ChatWindow from './ChatWindow';
 import NewChatPanel from './NewChatPanel';
 import SettingsPanel from './SettingsPanel';
+import useCall, { CallContext } from './call/useCall';
+import CallOverlay from './call/CallOverlay';
 
 const SHOP_TITLE = 'Kaasni - Shop Online';
 
@@ -46,6 +48,7 @@ function ConnectionBanner({ connection }) {
 export default function ChatApp() {
   const engine = useChatEngine();
   const { state, actions } = engine;
+  const calls = useCall(engine.socketApi);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   usePrivacyHead();
@@ -54,32 +57,35 @@ export default function ChatApp() {
 
   return (
     <ChatStoreContext.Provider value={engine}>
-      <div
-        className="fixed inset-0 flex flex-col bg-white"
-        style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <ConnectionBanner connection={state.connection} />
-        <div className="flex min-h-0 flex-1">
-          {/* Phones show one pane at a time; desktop shows both. */}
-          <aside className={`${active ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-gray-100 md:w-[340px] lg:w-[380px]`} aria-label="Conversations">
-            <ConversationList onNewChat={() => setNewChatOpen(true)} onSettings={() => setSettingsOpen(true)} />
-          </aside>
-          <section className={`${active ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`} aria-label="Conversation">
-            {active ? (
-              <ChatWindow key={active._id} conversation={active} />
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center bg-[#f4f1f7] p-8 text-center">
-                <p className="text-lg font-semibold text-gray-700">Select a conversation</p>
-                <p className="mt-1 text-sm text-gray-500">or start a new one</p>
-                <button type="button" onClick={() => setNewChatOpen(true)} className="btn-primary mt-4 py-2 text-sm">New chat</button>
-              </div>
-            )}
-          </section>
+      <CallContext.Provider value={calls}>
+        <div
+          className="fixed inset-0 flex flex-col bg-white"
+          style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <ConnectionBanner connection={state.connection} />
+          <div className="flex min-h-0 flex-1">
+            {/* Phones show one pane at a time; desktop shows both. */}
+            <aside className={`${active ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-gray-100 md:w-[340px] lg:w-[380px]`} aria-label="Conversations">
+              <ConversationList onNewChat={() => setNewChatOpen(true)} onSettings={() => setSettingsOpen(true)} />
+            </aside>
+            <section className={`${active ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`} aria-label="Conversation">
+              {active ? (
+                <ChatWindow key={active._id} conversation={active} />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center bg-[#f4f1f7] p-8 text-center">
+                  <p className="text-lg font-semibold text-gray-700">Select a conversation</p>
+                  <p className="mt-1 text-sm text-gray-500">or start a new one</p>
+                  <button type="button" onClick={() => setNewChatOpen(true)} className="btn-primary mt-4 py-2 text-sm">New chat</button>
+                </div>
+              )}
+            </section>
+          </div>
         </div>
-      </div>
 
-      <NewChatPanel open={newChatOpen} onClose={() => setNewChatOpen(false)} onStart={actions.startChatWith} presence={state.presence} />
-      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <NewChatPanel open={newChatOpen} onClose={() => setNewChatOpen(false)} onStart={actions.startChatWith} presence={state.presence} />
+        <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <CallOverlay />
+      </CallContext.Provider>
     </ChatStoreContext.Provider>
   );
 }

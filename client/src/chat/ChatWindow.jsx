@@ -7,13 +7,16 @@ import MessageInput from './MessageInput';
 import MessageMenu from './MessageMenu';
 import ImageViewer from './ImageViewer';
 import { lastSeenLabel } from './time';
-import { ArrowLeftIcon, HideIcon } from './icons';
+import { ArrowLeftIcon, HideIcon, PhoneIcon, VideoIcon } from './icons';
+import { useCallCtx } from './call/useCall';
 
 export default function ChatWindow({ conversation }) {
   const { state, actions, me } = useChatStore();
   const { panic } = useChat();
   const [menuMsg, setMenuMsg] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
+  const calls = useCallCtx();
+  const callBusy = !!calls.call || state.connection !== 'connected';
 
   const cid = conversation._id;
   const thread = state.threads[cid];
@@ -40,6 +43,26 @@ export default function ChatWindow({ conversation }) {
           <h2 className="truncate font-semibold leading-tight text-gray-900">{conversation.other.name}</h2>
           <p className={`truncate text-xs ${typing || presence.online ? 'text-brand-600' : 'text-gray-500'}`} aria-live="polite">{status}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => calls.actions.startCall(conversation, 'audio')}
+          disabled={callBusy}
+          className="rounded-full p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+          aria-label="Voice call"
+          title="Voice call"
+        >
+          <PhoneIcon width={20} height={20} />
+        </button>
+        <button
+          type="button"
+          onClick={() => calls.actions.startCall(conversation, 'video')}
+          disabled={callBusy}
+          className="rounded-full p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+          aria-label="Video call"
+          title="Video call"
+        >
+          <VideoIcon width={20} height={20} />
+        </button>
         <button type="button" onClick={panic} className="rounded-full p-2 text-gray-500 hover:bg-gray-100" aria-label="Hide" title="Hide (Esc Esc)">
           <HideIcon width={20} height={20} />
         </button>

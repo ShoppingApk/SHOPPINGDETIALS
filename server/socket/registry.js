@@ -33,6 +33,12 @@ module.exports = {
     return false;
   },
   isOnline: (userId) => presence.has(String(userId)),
+  // Socket ids of a user's connected tabs. A socket only exists while the chat is unlocked.
+  socketsOf: (userId) => [...(presence.get(String(userId)) || [])],
+
+  emitToSocket(socketId, event, payload) {
+    if (io && socketId) io.to(socketId).emit(event, payload);
+  },
 
   emitToUser(userId, event, payload) {
     if (io) io.to(room(String(userId))).emit(event, payload);

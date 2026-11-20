@@ -589,6 +589,89 @@ Every route checks that you are a participant of the conversation. Anything else
 
 When you connect, any messages that arrived for you while you were offline are marked delivered, and their senders receive `message:delivered`.
 
+### Audio and video calls (WebRTC)
+
+Calls are one-to-one, between two active chatusers who already share a conversation.
+- **Media:** goes directly between the two browsers, or through a TURN relay, and is always encrypted with DTLS-SRTP. It never passes through the API and is never recorded.
+- **Socket.IO:** carries only the signaling.
+- **Privacy:** SDP, ICE candidates and call content are never logged.
+
+#### `GET /chat/ice-servers`
+Chatusers only (404 for everyone else). Limited to 30 requests per 10 minutes per account. Sent with `Cache-Control: no-store`.
+
+```json
+{
+  "iceServers": [
+    { "urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { "urls": ["turn:203.0.113.10:3478?transport=udp"], "username": "1767229200:4f9a1c2b7d3e", "credential": "base64..." }
+  ],
+  "provider": "none | static | coturn-secret | cloudflare | metered",
+  "turn": true,
+  "ttl": 3600
+}
+```
+
+- **`turn`:** true when at least one TURN relay is included.
+- **`ttl`:** how long the credentials last in seconds, or `null` for fixed ones.
+- **Provider (`TURN_PROVIDER`):**
+  - `none`: STUN only;
+  - `coturn-secret`: HMAC-SHA1 credentials valid for 1 hour;
+  - `cloudflare` and `metered`: generated server-side through the provider's API.
+- **Caching:** the server caches generated credentials for up to 10 minutes. If the provider can't be reached, it falls back to STUN only and retries after 30 seconds.
+- **Filtering:** URLs on port 53 are always removed, because browsers block them.
+
+#### Call log message
+Every call adds a message to the conversation; it appears when the chat is unlocked. `sender` is the caller and `receiver` is the callee.
+
+```json
+{ "_id": "...", "kind": "call", "call": { "type": "audio|video", "outcome": "completed|missed|declined", "duration": 65 }, "text": "", "sender": "...", "receiver": "...", "createdAt": "..." }
+```
+
+`duration` is in seconds and is set only for completed calls. Ordinary messages have `"kind": "text"`.
+
+#### Rules
+- **IDs:** `callId` is a UUID made by the caller. Anything else is ignored.
+- **Who can signal:** only the two participants, and only from the tab that is in the call. Messages for unknown or ended calls are ignored.
+- **One call at a time:** a second invite returns `call:busy` to the other caller.
+- **Locked or offline callee:** the caller only ever gets `call:unavailable`; the reason is never revealed. A chatuser only has a socket while the private area is unlocked and open. A missed call is logged.
+- **Ringing:** every unlocked tab of the callee rings. When one accepts, the others get `call:answered-elsewhere`.
+- **Timeouts:** ringing stops after 45 seconds (`call:end { reason: "no-answer" }` to both sides). If a participant's socket drops during a call, there is a 15-second grace period to `call:rejoin`; after that the other side gets `call:end { reason: "connection-lost" }`.
+- **Rate limits:**
+  - `call:invite`: 5 per minute per user;
+  - control events: 30 per 10 seconds per socket;
+  - SDP/ICE relay: 400 per 10 seconds per socket.
+- **Size limits:** an SDP can be at most 32 KB, and a socket message at most 64 KB.
+
+**Client → server**
+
+| Event | Payload | Ack / effect |
+|---|---|---|
+| `call:invite` | `{ callId, toUserId, type: "audio" \| "video" }` | Ack `{ ok, error? }`. Then one of: `call:invite` to the callee, `call:busy` or `call:unavailable` to the caller. |
+| `call:ringing` | `{ callId }` | Callee's tab is showing the call. The caller receives `call:ringing`. |
+| `call:accept` | `{ callId }` | Ack `{ ok, resume }`. The caller receives `call:accept { resume }`; other callee tabs receive `call:answered-elsewhere`. |
+| `call:reject` | `{ callId }` | Caller receives `call:reject`; logged as *declined*. |
+| `call:cancel` | `{ callId }` | Caller hangs up while ringing. Callee receives `call:cancel`; logged as *missed*. |
+| `call:end` | `{ callId }` | Ends the call. The other side receives `call:end { reason: "ended" }`; logged as *completed* with its duration. While ringing, it acts as cancel or reject. |
+| `call:offer` / `call:answer` | `{ callId, description: { type, sdp } }` | Relayed to the other participant. |
+| `call:ice-candidate` | `{ callId, candidate: { candidate, sdpMid, sdpMLineIndex, usernameFragment } }` | Relayed. |
+| `call:media-state` | `{ callId, audio?, video?, videoPaused? }` | Relayed (mute, camera on/off, video paused for a poor network). |
+| `call:rejoin` | `{ callId, resume }` | After a socket reconnect: re-attaches this tab to the call. Ack `{ ok }`. The other side receives `call:peer-reconnected`. |
+
+**Server → client:**
+- `call:invite { callId, type, conversationId, from: { _id, name, avatar } }`
+- `call:ringing`
+- `call:accept { resume }`
+- `call:reject`
+- `call:busy`
+- `call:unavailable`
+- `call:cancel`
+- `call:end { reason: "ended" | "no-answer" | "declined" | "connection-lost" }`
+- `call:answered-elsewhere`
+- `call:offer`, `call:answer`, `call:ice-candidate`, `call:media-state` (relayed payloads)
+- `call:peer-reconnecting`, `call:peer-reconnected`
+
+Every event includes `callId`.
+
 ### Creating chatusers
 ```bash
 npm run create-chatuser -- <email> <password> <name>

@@ -4,6 +4,7 @@ import api, { unwrap } from './client';
 // is never downloaded by normal shoppers.
 export const chatApi = {
   config: () => api.get('/chat/config').then(unwrap),
+  iceServers: () => api.get('/chat/ice-servers').then(unwrap),
   users: (q, signal) => api.get('/chat/users', { params: q ? { q } : {}, signal }).then(unwrap),
   conversations: () => api.get('/chat/conversations').then(unwrap),
   open: (userId) => api.post('/chat/conversations', { userId }).then(unwrap),

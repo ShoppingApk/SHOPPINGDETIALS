@@ -35,3 +35,21 @@ export function lastSeenLabel(d) {
 }
 
 export const sameDay = (a, b) => startOfDay(new Date(a)) === startOfDay(new Date(b));
+
+// Call log entry -> { text, detail, missed } (detail = duration for completed calls).
+export function callSummary(m, me) {
+  const mine = String(m.sender) === me;
+  const kind = m.call?.type === 'video' ? 'video' : 'voice';
+  const Kind = kind === 'video' ? 'Video' : 'Voice';
+  const secs = Math.round(m.call?.duration || 0);
+  switch (m.call?.outcome) {
+    case 'completed': {
+      const detail = secs >= 60 ? `${Math.floor(secs / 60)} min ${secs % 60 ? `${secs % 60} s` : ''}`.trim() : `${secs} s`;
+      return { text: `${mine ? 'Outgoing' : 'Incoming'} ${kind} call`, detail, missed: false };
+    }
+    case 'declined':
+      return { text: mine ? `${Kind} call declined` : `Declined ${kind} call`, detail: '', missed: false };
+    default:
+      return { text: mine ? `${Kind} call, no answer` : `Missed ${kind} call`, detail: '', missed: !mine };
+  }
+}

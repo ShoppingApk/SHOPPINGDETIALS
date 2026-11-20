@@ -27,6 +27,13 @@ services:
         sync: false # 64 hex characters; keep the same value forever (see README)
       - key: CHAT_UNLOCK_KEYWORD
         sync: false
+      # Calls: leave empty for STUN only (default "none"). See README "Calls" for free TURN options.
+      - key: TURN_PROVIDER
+        sync: false
+      - key: TURN_URLS
+        sync: false
+      - key: TURN_SHARED_SECRET
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

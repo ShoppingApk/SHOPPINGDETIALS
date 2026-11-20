@@ -3,13 +3,14 @@ import { useChat } from '../context/ChatContext';
 import { useChatStore } from './useChatEngine';
 import Avatar from './Avatar';
 import Ticks from './Ticks';
-import { listTime } from './time';
+import { callSummary, listTime } from './time';
 import { EditIcon, GearIcon, HideIcon, SearchIcon } from './icons';
 
 function preview(m, me) {
   if (!m) return { text: 'No messages yet', italic: true };
   if (m.deleted) return { text: 'This message was deleted', italic: true };
   const mine = String(m.sender) === me;
+  if (m.kind === 'call') return { text: `${m.call?.type === 'video' ? '📹' : '📞'} ${callSummary(m, me).text}`, mine: false };
   const body = m.imageUrl && !m.text ? '📷 Photo' : m.text;
   return { text: body, mine };
 }

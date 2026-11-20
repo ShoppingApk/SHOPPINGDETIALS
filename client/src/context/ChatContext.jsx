@@ -31,6 +31,13 @@ export function ChatProvider({ children }) {
   const lastEsc = useRef(0);
   const hiddenAt = useRef(0);
   const hiddenTimer = useRef(null);
+  // True while an audio/video call is in progress: the inactivity and background auto-locks
+  // are paused (a call is activity). Panic, logout and manual lock still work.
+  const inCall = useRef(false);
+  const setInCall = useCallback((on) => {
+    inCall.current = on;
+    lastActivity.current = Date.now();
+  }, []);
 
   const leaveChatScreen = useCallback(() => {
     // replace: the Back button must not return to the chat screen.
@@ -114,7 +121,8 @@ export function ChatProvider({ children }) {
     activity.forEach((ev) => window.addEventListener(ev, bump, { passive: true, capture: true }));
 
     const idleCheck = setInterval(() => {
-      if (Date.now() - lastActivity.current > INACTIVITY_MS) lockAndLeave();
+      if (inCall.current) lastActivity.current = Date.now();
+      else if (Date.now() - lastActivity.current > INACTIVITY_MS) lockAndLeave();
     }, 15000);
 
     const onVisibility = () => {
@@ -124,11 +132,14 @@ export function ChatProvider({ children }) {
           return;
         }
         hiddenAt.current = Date.now();
-        hiddenTimer.current = setTimeout(lockAndLeave, HIDDEN_MS);
+        // During a call the tab may sit in the background (phone screen off, other app).
+        hiddenTimer.current = setTimeout(() => {
+          if (!inCall.current) lockAndLeave();
+        }, HIDDEN_MS);
       } else {
         clearTimeout(hiddenTimer.current);
         // Background timers can be throttled, so check the elapsed time too.
-        if (hiddenAt.current && Date.now() - hiddenAt.current > HIDDEN_MS) lockAndLeave();
+        if (hiddenAt.current && Date.now() - hiddenAt.current > HIDDEN_MS && !inCall.current) lockAndLeave();
         hiddenAt.current = 0;
       }
     };
@@ -165,8 +176,9 @@ export function ChatProvider({ children }) {
       onLogoTap,
       settings,
       setSettings,
+      setInCall,
     }),
-    [isChatUser, unlocked, lockAndLeave, panic, tryKeyword, onLogoTap, settings]
+    [isChatUser, unlocked, lockAndLeave, panic, tryKeyword, onLogoTap, settings, setInCall]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

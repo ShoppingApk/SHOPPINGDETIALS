@@ -1,0 +1,24 @@
+# Self-hosted TURN server for Kaasni calls (optional). Full guide: COTURN_SETUP.md
+#   1. cp .env.example .env   and fill it in
+#   2. sudo docker compose up -d
+services:
+  coturn:
+    image: coturn/coturn:4.6.3
+    container_name: kaasni-coturn
+    restart: unless-stopped
+    # Host networking: relays need the whole UDP port range, and NAT through Docker adds latency.
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./certs:/etc/coturn/certs:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --static-auth-secret=${TURN_SHARED_SECRET:?Set TURN_SHARED_SECRET in .env}
+      - --realm=${TURN_REALM:-kaasni}
+      - --external-ip=${EXTERNAL_IP:?Set EXTERNAL_IP in .env}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

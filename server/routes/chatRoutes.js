@@ -19,10 +19,21 @@ const unlockLimiter = rateLimit({
   message: { success: false, message: 'Too many attempts. Please try again later.', data: null },
 });
 
+// ICE server list (may contain TURN credentials): 30 per 10 minutes per account.
+const iceLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  keyGenerator: (req) => String(req.user._id),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please try again later.', data: null },
+});
+
 const id = (name) => param(name).isMongoId().withMessage('Not found');
 
 router.post('/unlock', unlockLimiter, body('keyword').isString().isLength({ max: 100 }), validate, ctrl.unlock);
 router.get('/config', ctrl.config);
+router.get('/ice-servers', iceLimiter, ctrl.iceServers);
 router.get('/users', query('q').optional().isString().isLength({ max: 50 }), validate, ctrl.searchUsers);
 router.get('/conversations', ctrl.listConversations);
 router.post('/conversations', body('userId').isMongoId().withMessage('Choose a user'), validate, ctrl.openConversation);

@@ -96,6 +96,7 @@ export default function MessageList({ conversationId, thread, me, typing, onLoad
             <MessageBubble
               msg={m}
               mine={String(m.sender) === me}
+              me={me}
               onMenu={onMenu}
               onOpenImage={onOpenImage}
               onRetry={onRetry}

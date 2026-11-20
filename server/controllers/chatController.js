@@ -5,6 +5,7 @@ const { safeEqual } = require('../utils/crypto');
 const env = require('../config/env');
 const cloud = require('../config/cloudinary');
 const chat = require('../services/chatService');
+const ice = require('../services/iceService');
 
 // POST /api/chat/unlock { keyword }
 // Non-chatusers never reach this (chatOnly answers 404). For chatusers the answer is
@@ -18,6 +19,12 @@ exports.unlock = (req, res) => {
 
 // GET /api/chat/config — feature flags for the UI.
 exports.config = (req, res) => ok(res, { images: cloud.isConfigured, maxTextLength: chat.MAX_TEXT, maxImageMB: 5 });
+
+// GET /api/chat/ice-servers — STUN/TURN list for calls (credentials are short-lived).
+exports.iceServers = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  ok(res, await ice.getIceServers());
+});
 
 // GET /api/chat/users?q=
 exports.searchUsers = asyncHandler(async (req, res) => {

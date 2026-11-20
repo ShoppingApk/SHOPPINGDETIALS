@@ -32,6 +32,18 @@ const env = {
     apiKey: process.env.CLOUDINARY_API_KEY || '',
     apiSecret: process.env.CLOUDINARY_API_SECRET || '',
   },
+  // Audio/video calls: which ICE (STUN/TURN) servers the browsers get. See README "Calls".
+  turn: {
+    provider: (process.env.TURN_PROVIDER || 'none').trim().toLowerCase(),
+    urls: (process.env.TURN_URLS || '').split(',').map((s) => s.trim()).filter(Boolean),
+    username: process.env.TURN_USERNAME || '',
+    credential: process.env.TURN_CREDENTIAL || '',
+    sharedSecret: process.env.TURN_SHARED_SECRET || '',
+    cloudflareKeyId: process.env.TURN_KEY_ID || '',
+    cloudflareToken: process.env.TURN_KEY_API_TOKEN || '',
+    meteredApiKey: process.env.METERED_API_KEY || '',
+    meteredAppName: (process.env.METERED_APP_NAME || '').trim().replace(/\.metered\.live$/i, ''),
+  },
 };
 
 // Refuse to run in production with weak or missing critical settings.
@@ -51,6 +63,30 @@ if (!/^[0-9a-fA-F]{64}$/.test(env.encryptionKey)) {
 }
 if (!env.chatUnlockKeyword) {
   console.warn('Warning: CHAT_UNLOCK_KEYWORD is not set. Keyword unlock is disabled.');
+}
+
+// Calls: check the TURN settings for the chosen provider (values themselves are never printed).
+{
+  const t = env.turn;
+  const needs = {
+    none: [],
+    static: [['TURN_URLS', t.urls.length], ['TURN_USERNAME', t.username], ['TURN_CREDENTIAL', t.credential]],
+    'coturn-secret': [['TURN_URLS', t.urls.length], ['TURN_SHARED_SECRET', t.sharedSecret]],
+    cloudflare: [['TURN_KEY_ID', t.cloudflareKeyId], ['TURN_KEY_API_TOKEN', t.cloudflareToken]],
+    metered: [['METERED_API_KEY', t.meteredApiKey], ['METERED_APP_NAME', t.meteredAppName]],
+  };
+  if (!needs[t.provider]) {
+    console.warn(`Warning: TURN_PROVIDER "${t.provider}" is not recognised. Using STUN only (none, static, coturn-secret, cloudflare, metered are valid).`);
+    t.provider = 'none';
+  }
+  const missingTurn = needs[t.provider].filter(([, v]) => !v).map(([k]) => k);
+  if (missingTurn.length) {
+    console.warn(`Warning: TURN_PROVIDER=${t.provider} but ${missingTurn.join(', ')} not set. Calls will use STUN only.`);
+    t.provider = 'none';
+  }
+  if (t.provider === 'none') {
+    console.warn('Warning: TURN_PROVIDER=none (STUN only). Calls may fail on some mobile or strict networks. See README "Calls".');
+  }
 }
 
 module.exports = env;
