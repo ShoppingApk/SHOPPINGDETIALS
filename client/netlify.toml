@@ -6,6 +6,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # VITE_API_URL is the public backend address and is meant to be in the browser code.
+  # Skip only this key; secret scanning stays on for everything else.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL"
 
 # Single-page app: send every route (e.g. /products/123 on refresh) to index.html.
 [[redirects]]
