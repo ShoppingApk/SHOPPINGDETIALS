@@ -1,0 +1,16 @@
+{
+  "name": "kaasni-root",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Kaasni - shopping app (client + server)",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "create-admin": "npm run create-admin --prefix server",
+    "seed": "npm run seed --prefix server",
+    "create-chatuser": "npm run create-chatuser --prefix server --"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

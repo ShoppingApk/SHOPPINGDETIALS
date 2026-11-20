@@ -1,0 +1,35 @@
+# Render Blueprint (optional): New + → Blueprint → pick this repo.
+# Creates the API as a free web service. Values marked `sync: false` are asked for in the dashboard.
+services:
+  - type: web
+    name: kaasni-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_SECRET
+        generateValue: true # random 256-bit value
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false # your Vercel URL, e.g. https://kaasni.vercel.app
+      - key: ENCRYPTION_KEY
+        sync: false # 64 hex characters; keep the same value forever (see README)
+      - key: CHAT_UNLOCK_KEYWORD
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
